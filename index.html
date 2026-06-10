@@ -163,7 +163,7 @@
       <div class="llm-card" id="card-gemini" onclick="selectLLM('gemini')">
         <div class="llm-icon">🔵</div>
         <div class="llm-name">Gemini</div>
-        <div class="llm-model">gemini-1.5-pro</div>
+        <div class="llm-model">gemini-2.0-flash</div>
       </div>
       <div class="llm-card" id="card-grok" onclick="selectLLM('grok')">
         <div class="llm-icon">⚫</div>
@@ -400,7 +400,7 @@ async function callOpenAI(apiKey, company) {
 }
 
 async function callGemini(apiKey, company) {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
