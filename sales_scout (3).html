@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Scout — AI Research Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f12; --surface: #151820; --surface2: #1c2030;
+    --border: #252a3a; --accent: #3b82f6; --accent-glow: rgba(59,130,246,0.15);
+    --accent2: #10b981; --warn: #f59e0b; --text: #e8eaf0;
+    --text2: #8b92a8; --text3: #555e78;
+    --mono: 'DM Mono', monospace; --sans: 'Inter', sans-serif; --radius: 10px;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .header { border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; align-items: center; gap: 12px; background: var(--surface); }
+  .logo { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .header-title { font-size: 15px; font-weight: 600; }
+  .header-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .header-badge { margin-left: auto; font-size: 11px; font-family: var(--mono); background: var(--accent-glow); color: var(--accent); padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(59,130,246,0.3); }
+
+  .main { max-width: 920px; margin: 0 auto; padding: 36px 24px; }
+
+  /* LLM SELECTOR */
+  .llm-section { margin-bottom: 24px; }
+  .section-label { font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; display: block; }
+  .llm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .llm-card {
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius); padding: 12px 10px; text-align: center;
+    cursor: pointer; transition: all .15s;
+  }
+  .llm-card:hover { border-color: var(--accent); }
+  .llm-card.active { border-color: var(--accent); background: var(--accent-glow); }
+  .llm-icon { font-size: 22px; margin-bottom: 5px; }
+  .llm-name { font-size: 12px; font-weight: 500; color: var(--text); }
+  .llm-model { font-size: 10px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+
+  /* API KEY ROW */
+  .api-row { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 16px; margin-bottom: 8px; }
+  .api-label { font-size: 12px; color: var(--text2); white-space: nowrap; }
+  .api-input { flex: 1; background: transparent; border: none; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; }
+  .api-input::placeholder { color: var(--text3); }
+  .api-hint { font-size: 11px; color: var(--text3); margin-bottom: 20px; }
+  .api-hint a { color: var(--accent); text-decoration: none; }
+
+  /* SEARCH */
+  .search-row { display: flex; gap: 10px; margin-bottom: 32px; }
+  .search-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; font-size: 15px; color: var(--text); font-family: var(--sans); outline: none; transition: border-color .2s; }
+  .search-input::placeholder { color: var(--text3); }
+  .search-input:focus { border-color: var(--accent); }
+  .search-btn { background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 14px 28px; font-size: 14px; font-weight: 500; font-family: var(--sans); cursor: pointer; transition: opacity .2s; white-space: nowrap; }
+  .search-btn:hover:not(:disabled) { opacity: .85; }
+  .search-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* STATUS */
+  .status-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 24px; display: none; align-items: center; gap: 12px; }
+  .status-bar.visible { display: flex; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status-text { font-size: 13px; color: var(--text2); }
+  .status-step { font-family: var(--mono); font-size: 11px; color: var(--accent); margin-left: auto; }
+
+  /* ERROR */
+  .error-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: var(--radius); padding: 16px 20px; font-size: 13px; color: #f87171; display: none; margin-bottom: 16px; line-height: 1.6; }
+  .error-box.visible { display: block; }
+
+  /* EMPTY */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; }
+  .empty-title { font-size: 15px; font-weight: 500; color: var(--text2); margin-bottom: 8px; }
+  .empty-sub { font-size: 13px; line-height: 1.7; }
+
+  /* REPORT */
+  .report { display: none; }
+  .report.visible { display: block; }
+  .report-header { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 14px; display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+  .company-avatar { width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), #6366f1); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+  .company-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .company-meta { font-size: 13px; color: var(--text2); display: flex; gap: 14px; flex-wrap: wrap; }
+  .report-actions { margin-left: auto; display: flex; gap: 8px; }
+  .btn-sm { font-size: 12px; padding: 7px 14px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-family: var(--sans); transition: all .15s; }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-sm.primary:hover { opacity: .85; color: #fff; }
+
+  .sections-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .section-card.full { grid-column: 1 / -1; }
+  .section-tag { font-size: 10px; font-weight: 500; font-family: var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--text3); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .section-tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .section-tag.blue { color: var(--accent); }
+  .section-tag.green { color: var(--accent2); }
+  .section-tag.amber { color: var(--warn); }
+  .section-tag.purple { color: #a78bfa; }
+  .section-body { font-size: 13px; color: var(--text); line-height: 1.75; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 11px; padding: 4px 10px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); }
+  .tag.highlight { background: var(--accent-glow); border-color: rgba(59,130,246,0.3); color: var(--accent); }
+  .intel-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .intel-item:last-child { border: none; }
+  .intel-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; margin-top: 5px; }
+  .intel-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .social-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .social-item:last-child { border: none; }
+  .social-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .social-platform { font-size: 12px; font-weight: 500; }
+  .social-detail { font-size: 12px; color: var(--text2); margin-top: 2px; line-height: 1.5; }
+  .contact-item { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+  .contact-key { font-size: 11px; color: var(--text3); width: 80px; flex-shrink: 0; padding-top: 2px; font-family: var(--mono); }
+  .contact-val { font-size: 13px; color: var(--text); }
+  .score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .score-label { font-size: 12px; color: var(--text2); width: 130px; flex-shrink: 0; }
+  .score-bar-wrap { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .score-bar { height: 100%; border-radius: 3px; transition: width 1.2s ease; }
+  .score-val { font-size: 12px; font-family: var(--mono); color: var(--text2); width: 30px; text-align: right; }
+  .pitch-block { background: var(--surface2); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 14px 16px; margin-bottom: 10px; }
+  .pitch-block:last-child { margin-bottom: 0; }
+  .pitch-title { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+  .pitch-body { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .email-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; font-size: 13px; line-height: 1.85; color: var(--text); white-space: pre-wrap; font-family: var(--sans); }
+
+  @media (max-width: 640px) {
+    .llm-grid { grid-template-columns: repeat(2, 1fr); }
+    .sections-grid { grid-template-columns: 1fr; }
+    .section-card.full { grid-column: 1; }
+    .main { padding: 20px 14px; }
+    .header { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🔍</div>
+  <div>
+    <div class="header-title">Sales Scout</div>
+    <div class="header-sub">AI-powered company intelligence</div>
+  </div>
+  <div class="header-badge" id="activeLLMBadge">Select an AI below</div>
+</div>
+
+<div class="main">
+
+  <!-- LLM SELECTOR -->
+  <div class="llm-section">
+    <span class="section-label">Step 1 — Choose your AI</span>
+    <div class="llm-grid">
+      <div class="llm-card" id="card-claude" onclick="selectLLM('claude')">
+        <div class="llm-icon">🟣</div>
+        <div class="llm-name">Claude</div>
+        <div class="llm-model">claude-sonnet-4</div>
+      </div>
+      <div class="llm-card" id="card-openai" onclick="selectLLM('openai')">
+        <div class="llm-icon">🟢</div>
+        <div class="llm-name">ChatGPT</div>
+        <div class="llm-model">gpt-4o</div>
+      </div>
+      <div class="llm-card" id="card-gemini" onclick="selectLLM('gemini')">
+        <div class="llm-icon">🔵</div>
+        <div class="llm-name">Gemini</div>
+        <div class="llm-model">gemini-2.0-flash</div>
+      </div>
+      <div class="llm-card" id="card-grok" onclick="selectLLM('grok')">
+        <div class="llm-icon">⚫</div>
+        <div class="llm-name">Grok</div>
+        <div class="llm-model">grok-2</div>
+      </div>
+    </div>
+
+    <span class="section-label">Step 2 — Enter your API key</span>
+    <div class="api-row">
+      <span class="api-label" id="apiLabel">🔑 API Key</span>
+      <input class="api-input" id="apiKey" type="password" placeholder="Select an AI provider above first..." />
+    </div>
+    <div class="api-hint" id="apiHint">Select an AI provider above to see where to get your API key.</div>
+  </div>
+
+  <!-- SEARCH -->
+  <span class="section-label">Step 3 — Research a company</span>
+  <div class="search-row">
+    <input class="search-input" id="companyInput" placeholder="Type any company name, website, or keyword e.g. Nike, alibaba.com, poolwhale..." />
+    <button class="search-btn" id="searchBtn" onclick="runResearch()">🚀 Research</button>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-bar" id="statusBar">
+    <div class="spinner"></div>
+    <div class="status-text" id="statusText">Initializing...</div>
+    <div class="status-step" id="statusStep"></div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- EMPTY -->
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🏢</div>
+    <div class="empty-title">Ready to research any company in seconds</div>
+    <div class="empty-sub">Pick your AI provider, enter your API key,<br>then type any company name. Sales Scout does the rest.</div>
+  </div>
+
+  <!-- REPORT -->
+  <div class="report" id="report">
+    <div class="report-header">
+      <div class="company-avatar" id="companyAvatar">🏢</div>
+      <div style="flex:1;min-width:0">
+        <div class="company-name" id="companyName">—</div>
+        <div class="company-meta" id="companyMeta"></div>
+      </div>
+      <div class="report-actions">
+        <button class="btn-sm" onclick="copyEmail()">📋 Copy Email</button>
+        <button class="btn-sm primary" onclick="copyReport()">📄 Copy Report</button>
+      </div>
+    </div>
+
+    <div class="sections-grid">
+      <div class="section-card full">
+        <div class="section-tag blue">Company Overview</div>
+        <div class="section-body" id="overview"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-tag green">Products & Services</div>
+        <div class="tag-list" id="products"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-tag amber">Key Intelligence</div>
+        <div id="intel"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-tag purple">Social & Online Presence</div>
+        <div id="social"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-tag green">Contact Information</div>
+        <div id="contacts"></div>
+      </div>
+      <div class="section-card full">
+        <div class="section-tag amber">Opportunity Assessment</div>
+        <div id="scores"></div>
+      </div>
+      <div class="section-card full">
+        <div class="section-tag blue">Pitch Angles for Your Sales Rep</div>
+        <div id="pitches"></div>
+      </div>
+      <div class="section-card full">
+        <div class="section-tag purple">Ready-to-Send Cold Email</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Personalised based on research — review and edit before sending</div>
+        <div class="email-block" id="coldEmail"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── LLM CONFIG ───────────────────────────────────────────────
+const LLM_CONFIG = {
+  claude: {
+    name: 'Claude',
+    label: '🟣 Claude API Key',
+    placeholder: 'sk-ant-api03-...',
+    hint: 'Get your key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys',
+    badge: 'Claude (Anthropic)',
+    call: callClaude
+  },
+  openai: {
+    name: 'ChatGPT',
+    label: '🟢 OpenAI API Key',
+    placeholder: 'sk-proj-...',
+    hint: 'Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> → API Keys',
+    badge: 'ChatGPT (OpenAI)',
+    call: callOpenAI
+  },
+  gemini: {
+    name: 'Gemini',
+    label: '🔵 Gemini API Key',
+    placeholder: 'AIzaSy...',
+    hint: 'Get your key at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> → Get API Key',
+    badge: 'Gemini (Google)',
+    call: callGemini
+  },
+  grok: {
+    name: 'Grok',
+    label: '⚫ Grok API Key',
+    placeholder: 'xai-...',
+    hint: 'Get your key at <a href="https://console.x.ai" target="_blank">console.x.ai</a> → API Keys',
+    badge: 'Grok (xAI)',
+    call: callGrok
+  }
+};
+
+let activeLLM = null;
+
+function selectLLM(id) {
+  activeLLM = id;
+  document.querySelectorAll('.llm-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('card-' + id).classList.add('active');
+  const cfg = LLM_CONFIG[id];
+  document.getElementById('apiLabel').textContent = cfg.label;
+  document.getElementById('apiKey').placeholder = cfg.placeholder;
+  document.getElementById('apiHint').innerHTML = cfg.hint;
+  document.getElementById('activeLLMBadge').textContent = cfg.badge;
+  document.getElementById('apiKey').focus();
+}
+
+// ─── SHARED PROMPT ────────────────────────────────────────────
+function buildPrompt(company) {
+  return `You are a B2B sales intelligence analyst. Research the company: "${company}"
+
+Search the web thoroughly for information about this company from their official website, LinkedIn, Facebook, Instagram, Twitter/X, news articles, and any public sources.
+
+Find:
+1. Company overview (what they do, market position, history)
+2. Products and services
+3. Social media presence and activity
+4. Contact information (website, email, phone, address, key people)
+5. Recent news, developments, achievements
+6. Their target customers and market
+7. Pain points or opportunities for a B2B supplier approaching them
+
+Respond ONLY with a valid JSON object, no markdown fences, no explanation. Use this exact structure:
+{
+  "official_name": "Full company name",
+  "industry": "Industry",
+  "location": "City, Country",
+  "size": "e.g. 50-200 employees",
+  "founded": "Year or Unknown",
+  "website": "URL or Not found",
+  "overview": "2-3 sentence overview of what they do and their market position",
+  "products": ["product1", "product2", "product3", "product4"],
+  "intel": ["Key fact 1", "Key fact 2", "Key fact 3", "Key fact 4"],
+  "social": [
+    {"platform": "LinkedIn", "icon": "💼", "detail": "URL and follower count or activity"},
+    {"platform": "Facebook", "icon": "📘", "detail": "Page info"},
+    {"platform": "Instagram", "icon": "📸", "detail": "Handle and followers"},
+    {"platform": "Twitter/X", "icon": "🐦", "detail": "Handle and activity"}
+  ],
+  "contacts": {
+    "website": "URL",
+    "email": "email or Not publicly listed",
+    "phone": "phone or Not publicly listed",
+    "address": "address or Not publicly listed",
+    "key_person": "Name, Title (if found)"
+  },
+  "scores": {
+    "lead_quality": 75,
+    "social_presence": 60,
+    "contact_accessibility": 50,
+    "market_fit": 80
+  },
+  "pitch_1_title": "Specific pitch angle 1",
+  "pitch_1_body": "2-3 sentence pitch specific to this company",
+  "pitch_2_title": "Specific pitch angle 2",
+  "pitch_2_body": "2-3 sentence pitch specific to this company",
+  "pitch_3_title": "Specific pitch angle 3",
+  "pitch_3_body": "2-3 sentence pitch specific to this company",
+  "cold_email": "Subject: [subject]\\n\\nDear [Name],\\n\\n[3-4 paragraph personalised cold email referencing specific research findings. Clear CTA at end.]\\n\\nBest regards,\\n[Your Name]"
+}`;
+}
+
+// ─── API CALLERS ──────────────────────────────────────────────
+async function callClaude(apiKey, company) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3000,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      messages: [{ role: "user", content: buildPrompt(company) }]
+    })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
+  const data = await res.json();
+  const texts = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  return extractJSON(texts);
+}
+
+async function callOpenAI(apiKey, company) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      max_tokens: 3000,
+      messages: [
+        { role: "system", content: "You are a B2B sales intelligence analyst. Always respond with valid JSON only, no markdown." },
+        { role: "user", content: buildPrompt(company) }
+      ]
+    })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'OpenAI API error'); }
+  const data = await res.json();
+  return extractJSON(data.choices[0].message.content);
+}
+
+async function callGemini(apiKey, company) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: buildPrompt(company) }] }],
+      generationConfig: { maxOutputTokens: 3000 }
+    })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Gemini API error'); }
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return extractJSON(text);
+}
+
+async function callGrok(apiKey, company) {
+  const res = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "grok-2-latest",
+      max_tokens: 3000,
+      messages: [
+        { role: "system", content: "You are a B2B sales intelligence analyst. Always respond with valid JSON only, no markdown." },
+        { role: "user", content: buildPrompt(company) }
+      ]
+    })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Grok API error'); }
+  const data = await res.json();
+  return extractJSON(data.choices[0].message.content);
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────
+function extractJSON(text) {
+  const clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  const start = clean.indexOf('{');
+  const end = clean.lastIndexOf('}');
+  if (start === -1) throw new Error('Could not parse AI response. Try again.');
+  return JSON.parse(clean.substring(start, end + 1));
+}
+
+function showError(msg) {
+  document.getElementById('errorBox').innerHTML = '⚠️ ' + msg;
+  document.getElementById('errorBox').classList.add('visible');
+  document.getElementById('statusBar').classList.remove('visible');
+  document.getElementById('searchBtn').disabled = false;
+}
+
+function setStatus(text, step) {
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('statusStep').textContent = step || '';
+}
+
+// ─── MAIN RESEARCH ────────────────────────────────────────────
+async function runResearch() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const company = document.getElementById('companyInput').value.trim();
+
+  if (!activeLLM) return showError('Please select an AI provider first (Claude, ChatGPT, Gemini, or Grok).');
+  if (!apiKey) return showError(`Please enter your ${LLM_CONFIG[activeLLM].name} API key.`);
+  if (!company) return showError('Please enter a company name to research.');
+
+  document.getElementById('errorBox').classList.remove('visible');
+  document.getElementById('report').classList.remove('visible');
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('statusBar').classList.add('visible');
+  document.getElementById('searchBtn').disabled = true;
+
+  const steps = [
+    ['Searching web for company information...', '1/3'],
+    ['Scanning social media & online presence...', '2/3'],
+    ['Generating intelligence report & cold email...', '3/3']
+  ];
+
+  let stepIdx = 0;
+  setStatus(...steps[stepIdx]);
+  const ticker = setInterval(() => {
+    stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+    setStatus(...steps[stepIdx]);
+  }, 4000);
+
+  try {
+    const d = await LLM_CONFIG[activeLLM].call(apiKey, company);
+    clearInterval(ticker);
+    renderReport(d, company);
+  } catch (e) {
+    clearInterval(ticker);
+    showError(e.message + '<br><small>Check your API key is correct and has available credits.</small>');
+  }
+}
+
+// ─── RENDER ───────────────────────────────────────────────────
+function renderReport(d, query) {
+  document.getElementById('statusBar').classList.remove('visible');
+  document.getElementById('searchBtn').disabled = false;
+
+  document.getElementById('companyAvatar').textContent = (d.official_name || query).charAt(0).toUpperCase();
+  document.getElementById('companyName').textContent = d.official_name || query;
+  document.getElementById('companyMeta').innerHTML = [
+    d.industry && `<span>🏭 ${d.industry}</span>`,
+    d.location && `<span>📍 ${d.location}</span>`,
+    d.size && `<span>👥 ${d.size}</span>`,
+    d.founded && d.founded !== 'Unknown' && `<span>📅 Est. ${d.founded}</span>`
+  ].filter(Boolean).join('');
+
+  document.getElementById('overview').textContent = d.overview || '—';
+
+  const productsEl = document.getElementById('products');
+  productsEl.innerHTML = (d.products || []).map((p, i) =>
+    `<span class="tag${i < 3 ? ' highlight' : ''}">${p}</span>`).join('');
+
+  document.getElementById('intel').innerHTML = (d.intel || []).map(item =>
+    `<div class="intel-item"><div class="intel-dot"></div><div class="intel-text">${item}</div></div>`).join('');
+
+  document.getElementById('social').innerHTML = (d.social || []).map(s =>
+    `<div class="social-item"><div class="social-icon">${s.icon||'🌐'}</div><div><div class="social-platform">${s.platform}</div><div class="social-detail">${s.detail}</div></div></div>`).join('');
+
+  const c = d.contacts || {};
+  document.getElementById('contacts').innerHTML = [
+    c.website && `<div class="contact-item"><span class="contact-key">website</span><span class="contact-val">${c.website}</span></div>`,
+    c.email && `<div class="contact-item"><span class="contact-key">email</span><span class="contact-val">${c.email}</span></div>`,
+    c.phone && `<div class="contact-item"><span class="contact-key">phone</span><span class="contact-val">${c.phone}</span></div>`,
+    c.address && `<div class="contact-item"><span class="contact-key">address</span><span class="contact-val">${c.address}</span></div>`,
+    c.key_person && `<div class="contact-item"><span class="contact-key">contact</span><span class="contact-val">${c.key_person}</span></div>`
+  ].filter(Boolean).join('');
+
+  const scoreItems = [
+    { label: 'Lead Quality', key: 'lead_quality', color: '#3b82f6' },
+    { label: 'Social Presence', key: 'social_presence', color: '#10b981' },
+    { label: 'Contact Access', key: 'contact_accessibility', color: '#f59e0b' },
+    { label: 'Market Fit', key: 'market_fit', color: '#a78bfa' }
+  ];
+  document.getElementById('scores').innerHTML = scoreItems.map(si =>
+    `<div class="score-row">
+      <div class="score-label">${si.label}</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:${(d.scores||{})[si.key]||50}%;background:${si.color}"></div></div>
+      <div class="score-val">${(d.scores||{})[si.key]||50}</div>
+    </div>`).join('');
+
+  document.getElementById('pitches').innerHTML = [1,2,3].map(n =>
+    `<div class="pitch-block"><div class="pitch-title">${d['pitch_'+n+'_title']||''}</div><div class="pitch-body">${d['pitch_'+n+'_body']||''}</div></div>`).join('');
+
+  document.getElementById('coldEmail').textContent = d.cold_email || '—';
+  document.getElementById('report').classList.add('visible');
+  window._lastReport = d;
+}
+
+// ─── COPY ─────────────────────────────────────────────────────
+function copyEmail() {
+  navigator.clipboard.writeText(document.getElementById('coldEmail').textContent)
+    .then(() => alert('Cold email copied to clipboard!'));
+}
+function copyReport() {
+  const d = window._lastReport || {};
+  const text = [
+    `SALES SCOUT REPORT — ${d.official_name || ''}`,
+    `Industry: ${d.industry||''} | Location: ${d.location||''} | Size: ${d.size||''}`,
+    '', 'OVERVIEW', d.overview || '',
+    '', 'PRODUCTS', (d.products||[]).join(', '),
+    '', 'KEY INTELLIGENCE', (d.intel||[]).map((x,i)=>`${i+1}. ${x}`).join('\n'),
+    '', 'CONTACTS',
+    `Website: ${(d.contacts||{}).website||''}`,
+    `Email: ${(d.contacts||{}).email||''}`,
+    `Phone: ${(d.contacts||{}).phone||''}`,
+    `Key Contact: ${(d.contacts||{}).key_person||''}`,
+    '', 'COLD EMAIL', d.cold_email || ''
+  ].join('\n');
+  navigator.clipboard.writeText(text).then(() => alert('Full report copied to clipboard!'));
+}
+
+// Enter key
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('companyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') runResearch();
+  });
+});
+</script>
+</body>
+</html>
